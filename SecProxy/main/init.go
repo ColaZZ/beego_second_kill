@@ -42,6 +42,7 @@ func initSec() (err error) {
 		return
 	}
 
+	service.InitService(secKillConf)
 	initSecProductWatch()
 	logs.Info("init sec succ")
 
