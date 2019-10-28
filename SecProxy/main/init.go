@@ -1,12 +1,14 @@
 package main
 
 import (
+	"SecondKill/SecProxy/service"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/garyburd/redigo/redis"
 	etcd_client "go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/mvcc/mvccpb"
 	"time"
 )
 
@@ -39,7 +41,66 @@ func initSec() (err error) {
 		logs.Error("load sec conf failed, err :%v", err)
 		return
 	}
+
+	initSecProductWatch()
+	logs.Info("init sec succ")
+
 	return
+}
+
+func initSecProductWatch() {
+	go watchSecProductKey(secKillConf.EtcdConf.EtcdSecProductKey)
+}
+
+func watchSecProductKey(key string) {
+	cli, err := etcd_client.New(etcd_client.Config{
+		Endpoints:   []string{"localhost:2379", "localhost:22379", "localhost:32379"},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		fmt.Println("connect etcd failed, err: ", err)
+		return
+	}
+
+	logs.Debug("begin etcd watch key:", key)
+	for {
+		rch := cli.Watch(context.Background(), key)
+		var getConfSucc = true
+		var secProductInfo []service.SecProductInfoConf
+		for wresp := range rch {
+			for _, ev := range wresp.Events {
+				if ev.Type == mvccpb.DELETE {
+					logs.Warn("key[%s] 's config deleted", key)
+					continue
+				}
+				if ev.Type == mvccpb.PUT && key == string(ev.Kv.Key) {
+					err = json.Unmarshal(ev.Kv.Value, &secProductInfo)
+					if err != nil {
+						logs.Error("key %s unmarshal %s, err:%s", key, ev.Kv.Value, err)
+						getConfSucc = false
+						continue
+					}
+				}
+				logs.Debug("get config from etcd, %s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+
+			}
+
+			if getConfSucc {
+				logs.Debug("get config from etcd succ, %v", secProductInfo)
+				updateSecProductInfo(secProductInfo)
+			}
+		}
+	}
+}
+
+func updateSecProductInfo(secProductInfo []service.SecProductInfoConf) {
+	var tmp map[int]*service.SecProductInfoConf = make(map[int]*service.SecProductInfoConf, 1024)
+	for _, v := range secProductInfo {
+		tmp[v.ProductId] = &v
+	}
+	secKillConf.RWSecProductLock.Lock()
+	secKillConf.SecProductInfoMap = tmp
+	secKillConf.RWSecProductLock.Unlock()
 }
 
 func loadSecConf() (err error) {
@@ -50,9 +111,19 @@ func loadSecConf() (err error) {
 		return
 	}
 
+	var secProductInfo []service.SecProductInfoConf
 	for k, v := range resp.Kvs {
 		logs.Debug("key[%v] valued[%v]", k, v)
+		err = json.Unmarshal(v.Value, &secProductInfo)
+		if err != nil {
+			logs.Error("Unmarshal sec product info failed, err:%v", err)
+			return
+		}
+		logs.Debug("sec info conf is [%v]", secProductInfo)
+
 	}
+
+	// secKillConf.SecProductInfo
 
 	return
 }
