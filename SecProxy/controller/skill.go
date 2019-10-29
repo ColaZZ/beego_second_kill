@@ -4,6 +4,8 @@ import (
 	"SecondKill/SecProxy/service"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
+	"strconv"
+	"time"
 )
 
 type SkillController struct {
@@ -11,7 +13,41 @@ type SkillController struct {
 }
 
 func (p *SkillController) SecKill() {
-	p.Data["json"] = "sec kill"
+	productId, err := p.GetInt("product_id")
+	result := make(map[string]interface{})
+
+	result["code"] = 0
+	result["message"] = "success"
+
+	defer func() {
+		p.Data["json"] = result
+		p.ServeJSON()
+	}()
+
+	source := p.GetString("src")
+	authCode := p.GetString("authcode")
+	secTime := p.GetString("time")
+	nance := p.GetString("nance")
+
+	secRequest := &service.SecRequest{}
+	secRequest.AuthCode = authCode
+	secRequest.Source = source
+	secRequest.SecTime = secTime
+	secRequest.Nance = nance
+	secRequest.ProductId = productId
+	secRequest.UserAuthSign = p.Ctx.GetCookie("userAuthSign")
+	secRequest.UserId, _ = strconv.Atoi(p.Ctx.GetCookie("UserId"))
+	secRequest.AccessTime = time.Now()
+
+	data, code, err := service.SecKill(secRequest)
+	if err != nil {
+		result["code"] = code
+		result["message"] = err.Error()
+		return
+	}
+	result["data"] = data
+	result["code"] = code
+
 	p.ServeJSON()
 }
 
@@ -38,7 +74,7 @@ func (p *SkillController) SecInfo() {
 		result["code"] = code
 		result["message"] = data
 
-	}else {
+	} else {
 		data, code, err := service.SecInfo(productId)
 		if err != nil {
 			result["code"] = code
@@ -47,10 +83,7 @@ func (p *SkillController) SecInfo() {
 			return
 		}
 		result["code"] = code
-		result["data"]= data
+		result["data"] = data
 	}
 
-
 }
-
-

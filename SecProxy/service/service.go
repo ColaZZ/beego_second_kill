@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"time"
+
+	"crypto/md5"
 )
 
 var (
@@ -24,7 +26,7 @@ func SecInfo(productId int) (data []map[string]interface{}, code int, err error)
 		return
 	}
 	data = append(data, item)
-	return 
+	return
 }
 
 func SecInfoList() (data []map[string]interface{}, code int, err error) {
@@ -96,5 +98,35 @@ func SecInfoById(productId int) (data map[string]interface{}, code int, err erro
 	data["end"] = end
 	data["status"] = status
 
+	return
+}
+
+func SecKill(req *SecRequest) (data []map[string]interface{}, code int, err error) {
+	secSkillConf.RWSecProductLock.RLock()
+	defer secSkillConf.RWSecProductLock.RUnlock()
+
+	err = userCheck(req)
+	if err != nil {
+		code = ErrUserCheckAuthFailed
+		logs.Warn("userId[%s] invalid, check failed, req[%v]", req.UserId, req)
+		return
+	}
+
+	err = antiSpam(req)
+	if err != nil {
+		code = ErrUserServiceBusy
+		logs.Warn("userId[%s] invalid, check failed, req[%v]", req.UserId, req)
+		return
+	}
+	return
+}
+
+func userCheck(req *SecRequest) (err error) {
+	authData := fmt.Sprintf("%d:%s", req.UserId, secSkillConf.CookieSecretKey)
+	authSign := fmt.Sprintf("%x", md5.Sum([]byte(authData)))
+	if authSign != req.UserAuthSign {
+		err = fmt.Errorf("invalid user cookie auth")
+		return
+	}
 	return
 }

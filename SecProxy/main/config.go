@@ -83,7 +83,14 @@ func initConfig() (err error) {
 	}
 
 	secKillConf.EtcdConf.EtcdSecProductKey = fmt.Sprintf("%s%s", secKillConf.EtcdConf.EtcdSecKeyPrefix, productKey)
-	
+	secKillConf.CookieSecretKey = beego.AppConfig.String("cookie_secretkey")
+	secLimit, err := beego.AppConfig.Int("user_sec_access_limit")
+	if err != nil {
+		err = fmt.Errorf("init config failed, read user_sec_access_limit error:%v", err)
+		return
+	}
+	secKillConf.UserSecAccessLimit = secLimit
+
 
 	return
 
