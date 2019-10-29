@@ -2,6 +2,12 @@ package service
 
 import "sync"
 
+const (
+	ProductStatusNormal       = 0
+	ProductStatusSaleOut      = 1
+	ProductStatusForceSaleOut = 2
+)
+
 type RedisConf struct {
 	RedisAddr        string
 	RedisMaxIdle     int
@@ -27,8 +33,8 @@ type SecSkillConf struct {
 
 type SecProductInfoConf struct {
 	ProductId int
-	StartTime int
-	EndTime   int
+	StartTime int64
+	EndTime   int64
 	Status    int
 	Total     int
 	Left      int

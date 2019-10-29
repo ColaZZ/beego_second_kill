@@ -28,19 +28,29 @@ func (p *SkillController) SecInfo() {
 	}()
 
 	if err != nil {
-		result["code"] = 1001
-		result["messsage"] = "invalid productId"
-		logs.Error("invaild request, get product id failed, err:%v", err)
-		return
-	}
-
-	data, code, err := service.SecInfo(productId)
-	if err != nil {
+		data, code, err := service.SecInfoList()
+		if err != nil {
+			result["code"] = code
+			result["messsage"] = "invalid productId"
+			logs.Error("invaild request, get product id failed, err:%v", err)
+			return
+		}
 		result["code"] = code
-		result["message"] = err.Error()
-		logs.Error("invalid request, get product id failed, err:%v", err)
-		return
+		result["message"] = data
+
+	}else {
+		data, code, err := service.SecInfo(productId)
+		if err != nil {
+			result["code"] = code
+			result["message"] = err.Error()
+			logs.Error("invalid request, get product id failed, err:%v", err)
+			return
+		}
+		result["code"] = code
+		result["data"]= data
 	}
 
-	result["data"]= data
+
 }
+
+
