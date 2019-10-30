@@ -12,6 +12,12 @@ var (
 	secSkillConf *SecSkillConf
 )
 
+func NewSecRequest() (secRequest *SecRequest) {
+	secRequest = &SecRequest{
+		ResultChan: make(chan *SecResult, 1),
+	}
+	return
+}
 
 func SecInfo(productId int) (data []map[string]interface{}, code int, err error) {
 	secSkillConf.RWSecProductLock.Lock()
@@ -97,24 +103,68 @@ func SecInfoById(productId int) (data map[string]interface{}, code int, err erro
 	return
 }
 
-func SecKill(req *SecRequest) (data []map[string]interface{}, code int, err error) {
-	secSkillConf.RWSecProductLock.RLock()
-	defer secSkillConf.RWSecProductLock.RUnlock()
+func SecKill(req *SecRequest) (data map[string]interface{}, code int, err error) {
+
+	secKillConf.RWSecProductLock.RLock()
+	defer secKillConf.RWSecProductLock.RUnlock()
 
 	err = userCheck(req)
 	if err != nil {
 		code = ErrUserCheckAuthFailed
-		logs.Warn("userId[%s] invalid, check failed, req[%v]", req.UserId, req)
+		logs.Warn("userId[%d] invalid, check failed, req[%v]", req.UserId, req)
 		return
 	}
 
 	err = antiSpam(req)
 	if err != nil {
 		code = ErrUserServiceBusy
-		logs.Warn("userId[%s] invalid, check failed, req[%v]", req.UserId, req)
+		logs.Warn("userId[%d] invalid, check failed, req[%v]", req.UserId, req)
 		return
 	}
-	return
+
+	data, code, err = SecInfoById(req.ProductId)
+	if err != nil {
+		logs.Warn("userId[%d] secInfoBy Id failed, req[%v]", req.UserId, req)
+		return
+	}
+
+	if code != 0 {
+		logs.Warn("userId[%d] secInfoByid failed, code[%d] req[%v]", req.UserId, code, req)
+		return
+	}
+
+	userKey := fmt.Sprintf("%s_%s", req.UserId, req.ProductId)
+	secKillConf.UserConnMap[userKey] = req.ResultChan
+
+	secKillConf.SecReqChan <- req
+
+	ticker := time.NewTicker(time.Second * 10)
+
+	defer func() {
+		ticker.Stop()
+		secKillConf.UserConnMapLock.Lock()
+		delete(secKillConf.UserConnMap, userKey)
+		secKillConf.UserConnMapLock.Unlock()
+	}()
+
+	select {
+	case <-ticker.C:
+		code = ErrProcessTimeout
+		err = fmt.Errorf("request timeout")
+
+		return
+	case <-req.CloseNotify:
+		code = ErrClientClosed
+		err = fmt.Errorf("client already closed")
+		return
+	case result := <-req.ResultChan:
+		code = result.Code
+		data["product_id"] = result.ProductId
+		data["token"] = result.Token
+		data["user_id"] = result.UserId
+
+		return
+	}
 }
 
 func userCheck(req *SecRequest) (err error) {

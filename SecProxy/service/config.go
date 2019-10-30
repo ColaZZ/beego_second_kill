@@ -1,9 +1,10 @@
 package service
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"sync"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 const (
@@ -26,22 +27,46 @@ type EtcdConf struct {
 	EtcdSecProductKey string
 }
 
+type AccessLimitConf struct {
+	IPSecAccessLimit   int
+	UserSecAccessLimit int
+	IPMinAccessLimit   int
+	UserMinAccessLimit int
+}
+
 type SecSkillConf struct {
 	RedisBlackConf       RedisConf
-	EtcdConf           EtcdConf
-	LogPath            string
-	LogLevel           string
-	SecProductInfoMap  map[int]*SecProductInfoConf
-	RWSecProductLock   sync.RWMutex
-	CookieSecretKey    string
-	UserSecAccessLimit int
-	ReferWhiteList     []string
-	IPSecAccessLimit   int
+	RedisProxy2LayerConf RedisConf
+	RedisLayer2ProxyConf RedisConf
+
+	EtcdConf          EtcdConf
+	LogPath           string
+	LogLevel          string
+	SecProductInfoMap map[int]*SecProductInfoConf
+	RWSecProductLock  sync.RWMutex
+	CookieSecretKey   string
+
+	ReferWhiteList []string
 
 	ipBlackMap map[string]bool
 	idBlackMap map[int]bool
 
-	blackRedisPool *redis.Pool
+	AccessLimitConf      AccessLimitConf
+	blackRedisPool       *redis.Pool
+	proxy2LayerRedisPool *redis.Pool
+	layer2ProxyRedisPool *redis.Pool
+
+	secLimitMgr *SecLimitMgr
+
+	RWBlackLock                  sync.RWMutex
+	WriteProxy2LayerGoroutineNum int
+	ReadProxy2LayerGoroutineNum  int
+
+	SecReqChan     chan *SecRequest
+	SecReqChanSize int
+
+	UserConnMap     map[string]chan *SecResult
+	UserConnMapLock sync.Mutex
 }
 
 type SecProductInfoConf struct {
@@ -53,16 +78,25 @@ type SecProductInfoConf struct {
 	Left      int
 }
 
+type SecResult struct {
+	ProductId int
+	UserId    int
+	Code      int
+	Token     string
+}
+
 type SecRequest struct {
 	ProductId     int
 	Source        string
 	AuthCode      string
 	SecTime       string
-	Sign          string
 	Nance         string
 	UserId        int
 	UserAuthSign  string
 	AccessTime    time.Time
 	ClientAddr    string
 	ClientRefence string
+	CloseNotify   <-chan bool
+
+	ResultChan chan *SecResult
 }

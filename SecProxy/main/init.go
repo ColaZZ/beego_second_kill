@@ -18,11 +18,11 @@ var (
 )
 
 func initSec() (err error) {
-	err = initRedis()
-	if err != nil {
-		logs.Error("init redis failed, err:%v", err)
-		return
-	}
+	//err = initRedis()
+	//if err != nil {
+	//	logs.Error("init redis failed, err:%v", err)
+	//	return
+	//}
 
 	err = initEtcd()
 	if err != nil {
@@ -42,7 +42,7 @@ func initSec() (err error) {
 		return
 	}
 
-	service.InitService(secKillConf)
+	_ = service.InitService(secKillConf)
 	initSecProductWatch()
 	logs.Info("init sec succ")
 
@@ -105,7 +105,6 @@ func updateSecProductInfo(secProductInfo []service.SecProductInfoConf) {
 }
 
 func loadSecConf() (err error) {
-	// key := fmt.Sprintf("%s/product", secKillConf.EtcdConf.EtcdSecProductKey)
 	resp, err := etcdClient.Get(context.Background(), secKillConf.EtcdConf.EtcdSecProductKey)
 	if err != nil {
 		logs.Error("get [%s] from etcd failed, err :%v", secKillConf.EtcdConf.EtcdSecProductKey, err)
@@ -123,8 +122,7 @@ func loadSecConf() (err error) {
 		logs.Debug("sec info conf is [%v]", secProductInfo)
 
 	}
-
-	// secKillConf.SecProductInfo
+	updateSecProductInfo(secProductInfo)
 
 	return
 }
@@ -158,26 +156,26 @@ func initLogger() (err error) {
 	return
 }
 
-func initRedis() (err error) {
-	redisPool = &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", secKillConf.RedisConf.RedisAddr)
-		},
-		MaxIdle:     secKillConf.RedisConf.RedisMaxIdle,
-		MaxActive:   secKillConf.RedisConf.RedisMaxActive,
-		IdleTimeout: time.Duration(secKillConf.RedisConf.RedisIdleTimeout) * time.Second,
-	}
-
-	conn := redisPool.Get()
-	defer conn.Close()
-
-	_, err = conn.Do("ping")
-	if err != nil {
-		logs.Error("ping redis failed, err :%v", err)
-		return
-	}
-	return
-}
+//func initRedis() (err error) {
+//	redisPool = &redis.Pool{
+//		Dial: func() (redis.Conn, error) {
+//			return redis.Dial("tcp", secKillConf.RedisConf.RedisAddr)
+//		},
+//		MaxIdle:     secKillConf.RedisConf.RedisMaxIdle,
+//		MaxActive:   secKillConf.RedisConf.RedisMaxActive,
+//		IdleTimeout: time.Duration(secKillConf.RedisConf.RedisIdleTimeout) * time.Second,
+//	}
+//
+//	conn := redisPool.Get()
+//	defer conn.Close()
+//
+//	_, err = conn.Do("ping")
+//	if err != nil {
+//		logs.Error("ping redis failed, err :%v", err)
+//		return
+//	}
+//	return
+//}
 
 func initEtcd() (err error) {
 	cli, err := etcd_client.New(etcd_client.Config{

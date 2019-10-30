@@ -6,7 +6,7 @@ import (
 	"github.com/astaxie/beego/logs"
 )
 
-func init () {
+func init() {
 	logs.Debug("enter router init")
 	beego.Router("/seckill", &controller.SkillController{}, "*:SecKill")
 	beego.Router("/secinof", &controller.SkillController{}, "*SecInfo")

@@ -1,4 +1,4 @@
-package SetConf
+package main
 
 import (
 	"context"
@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"go.etcd.io/etcd/clientv3"
 	"time"
+)
+
+const (
+	EtcdKey = "/oldboy/backend/secskill/product"
 )
 
 type SecInfoConf struct {
@@ -17,28 +21,24 @@ type SecInfoConf struct {
 	Left      int
 }
 
-var (
-	EtcdKey = "/sk/backend/seckill/product"
-)
-
 func SetLogConfToEtcd() {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:22379", "localhost:2379", "localhost:33279"},
+		Endpoints:   []string{"localhost:2379", "localhost:22379", "localhost:32379"},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {
-		fmt.Println("connect etcd failed,err:", err)
+		fmt.Println("connect failed, err:", err)
 		return
 	}
 
-	fmt.Println("coonect etcd success")
+	fmt.Println("connect succ")
 	defer func() {
 		_ = cli.Close()
 	}()
 
-	var SecInfoConfArry []SecInfoConf
-	SecInfoConfArry = append(
-		SecInfoConfArry,
+	var SecInfoConfArr []SecInfoConf
+	SecInfoConfArr = append(
+		SecInfoConfArr,
 		SecInfoConf{
 			ProductId: 1029,
 			StartTime: 1505008800,
@@ -48,8 +48,8 @@ func SetLogConfToEtcd() {
 			Left:      1000,
 		},
 	)
-	SecInfoConfArry = append(
-		SecInfoConfArry,
+	SecInfoConfArr = append(
+		SecInfoConfArr,
 		SecInfoConf{
 			ProductId: 1027,
 			StartTime: 1505008800,
@@ -60,27 +60,29 @@ func SetLogConfToEtcd() {
 		},
 	)
 
-	data, err := json.Marshal(SecInfoConfArry)
+	data, err := json.Marshal(SecInfoConfArr)
 	if err != nil {
-		fmt.Println("marshal failed, err:", err)
+		fmt.Println("json failed, ", err)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//cli.Delete(ctx, EtcdKey)
+	//return
 	_, err = cli.Put(ctx, EtcdKey, string(data))
-	if err != nil {
-		fmt.Println("etcd put %s failed", EtcdKey)
-		return
-	}
 	cancel()
-
-	context.WithTimeout(context.Background(), time.Second)
-	resp, err := cli.Get(ctx, EtcdKey)
 	if err != nil {
-		fmt.Println("etcd get failed", EtcdKey)
+		fmt.Println("put failed, err:", err)
 		return
 	}
 
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	resp, err := cli.Get(ctx, EtcdKey)
+	cancel()
+	if err != nil {
+		fmt.Println("get failed, err:", err)
+		return
+	}
 	for _, ev := range resp.Kvs {
 		fmt.Printf("%s : %s\n", ev.Key, ev.Value)
 	}

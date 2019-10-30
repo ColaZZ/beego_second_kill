@@ -25,12 +25,18 @@ func (p *SkillController) SecKill() {
 		p.ServeJSON()
 	}()
 
+	if err != nil {
+		result["code"] = 1001
+		result["message"] = "invalid product_id"
+		return
+	}
+
 	source := p.GetString("src")
 	authCode := p.GetString("authcode")
 	secTime := p.GetString("time")
 	nance := p.GetString("nance")
 
-	secRequest := &service.SecRequest{}
+	secRequest := service.NewSecRequest()
 	secRequest.AuthCode = authCode
 	secRequest.Source = source
 	secRequest.SecTime = secTime
@@ -44,6 +50,8 @@ func (p *SkillController) SecKill() {
 		secRequest.ClientAddr = strings.Split(p.Ctx.Request.RemoteAddr, ":")[0]
 	}
 	secRequest.ClientRefence = p.Ctx.Request.Referer()
+	secRequest.CloseNotify = p.Ctx.ResponseWriter.CloseNotify()
+	logs.Debug("client request:[%v]", secRequest)
 
 	data, code, err := service.SecKill(secRequest)
 	if err != nil {
