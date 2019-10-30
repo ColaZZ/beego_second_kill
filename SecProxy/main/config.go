@@ -15,17 +15,17 @@ var (
 )
 
 func initConfig() (err error) {
-	redisAddr := beego.AppConfig.String("redis_addr")
+	redisBlackAddr := beego.AppConfig.String("redis_black_addr")
 	etcdAddr := beego.AppConfig.String("etcd_addr")
 
-	logs.Error("read redis config success :%v", redisAddr)
+	logs.Error("read redis config success :%v", redisBlackAddr)
 	logs.Error("read etcd config successs :%v", etcdAddr)
 
-	secKillConf.RedisConf.RedisAddr = redisAddr
+	secKillConf.RedisBlackConf.RedisAddr = redisBlackAddr
 	secKillConf.EtcdConf.EtcdAddr = etcdAddr
 
-	if len(redisAddr) == 0 || len(etcdAddr) == 0 {
-		err = fmt.Errorf("init config failed, redis[%s] or etcd[%s] config is null", redisAddr, etcdAddr)
+	if len(redisBlackAddr) == 0 || len(etcdAddr) == 0 {
+		err = fmt.Errorf("init config failed, redis[%s] or etcd[%s] config is null", redisBlackAddr, etcdAddr)
 		return
 	}
 
@@ -47,9 +47,9 @@ func initConfig() (err error) {
 		return
 	}
 
-	secKillConf.RedisConf.RedisMaxIdle = redis_max_idle
-	secKillConf.RedisConf.RedisMaxActive = redis_max_active
-	secKillConf.RedisConf.RedisIdleTimeout = redis_idle_timeout
+	secKillConf.RedisBlackConf.RedisMaxIdle = redis_max_idle
+	secKillConf.RedisBlackConf.RedisMaxActive = redis_max_active
+	secKillConf.RedisBlackConf.RedisIdleTimeout = redis_idle_timeout
 
 	logPath := beego.AppConfig.String("log_path")
 	logLevel := beego.AppConfig.String("log_level")
@@ -91,6 +91,17 @@ func initConfig() (err error) {
 	}
 	secKillConf.UserSecAccessLimit = secLimit
 
+	referList := beego.AppConfig.String("refer_whitelist")
+	if len(referList) >0 {
+		secKillConf.ReferWhiteList = strings.Split(referList, ",")
+	}
+
+	ipLimit, err := beego.AppConfig.Int("ip_sec_access_limit")
+	if err != nil {
+		err = fmt.Errorf("init config failed, read ip_sec_access_limit err:%v", err)
+		return
+	}
+	secKillConf.IPSecAccessLimit = ipLimit
 
 	return
 

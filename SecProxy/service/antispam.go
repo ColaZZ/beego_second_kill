@@ -7,6 +7,7 @@ import (
 
 type SecLimitMgr struct {
 	UserLimitMap map[int]*SecLimit
+	IpLimitMap map[string]*SecLimit
 	lock sync.Mutex
 }
 
@@ -29,6 +30,22 @@ func antiSpam(req *SecRequest) (err error) {
 		err = fmt.Errorf("invalid request")
 		return
 	}
+
+	ipLimit, ok := secLimitMgr.IpLimitMap[req.ClientAddr]
+	if !ok {
+		ipLimit := & SecLimit{
+			count:   0,
+			curTime: 0,
+		}
+		secLimitMgr.IpLimitMap[req.ClientAddr] = ipLimit
+	}
+	secIpCount := ipLimit.Count(req.AccessTime.Unix())
+
+
+	if secIpCount > secSkillConf.IPSecAccessLimit {
+		err = fmt.Errorf("invalid request")
+		return
+	}
 	secLimitMgr.lock.Unlock()
-	return 
+	return
 }

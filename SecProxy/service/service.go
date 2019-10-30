@@ -12,10 +12,6 @@ var (
 	secSkillConf *SecSkillConf
 )
 
-func InitService(serviceConf *SecSkillConf) {
-	secSkillConf = serviceConf
-	logs.Debug("init service conf success, config:%v", secSkillConf)
-}
 
 func SecInfo(productId int) (data []map[string]interface{}, code int, err error) {
 	secSkillConf.RWSecProductLock.Lock()
@@ -122,6 +118,18 @@ func SecKill(req *SecRequest) (data []map[string]interface{}, code int, err erro
 }
 
 func userCheck(req *SecRequest) (err error) {
+	found := false
+	for _, refer := range secSkillConf.ReferWhiteList {
+		if refer == req.ClientRefence {
+			found = true
+		}
+	}
+	if !found {
+		err = fmt.Errorf("invalid request")
+		logs.Warn("user[%s] is reject by refer, req[%v]", req.UserId, req)
+		return
+	}
+
 	authData := fmt.Sprintf("%d:%s", req.UserId, secSkillConf.CookieSecretKey)
 	authSign := fmt.Sprintf("%x", md5.Sum([]byte(authData)))
 	if authSign != req.UserAuthSign {
