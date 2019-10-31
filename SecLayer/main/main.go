@@ -16,20 +16,20 @@ func main() {
 	logs.Debug("load config sucess, config:%v", appConfig)
 
 	//2.初始化日志库
-	//err = initLogger()
-	//if err != nil {
-	//	logs.Error("init logger failed, err:%v", err)
-	//	panic(fmt.Sprintf("init logger failed, err:%v", err))
-	//}
-	//logs.Debug("load logger success")
+	err = initLogger()
+	if err != nil {
+		logs.Error("init logger failed, err:%v", err)
+		panic(fmt.Sprintf("init logger failed, err:%v", err))
+	}
+	logs.Debug("load logger success")
 
 	//3.初始化秒杀逻辑
-	//err = initSeckill()
-	//if err != nil {
-	//	logs.Error("init sec kill failed ,err:%v", err)
-	//	panic(fmt.Sprintf("init sec kill failed, err:%v", err))
-	//}
-	//logs.Debug("load sec kill success")
+	err = service.InitSecLayer(appConfig)
+	if err != nil {
+		logs.Error("init sec kill failed ,err:%v", err)
+		panic(fmt.Sprintf("init sec kill failed, err:%v", err))
+	}
+	logs.Debug("load sec kill success")
 
 	//4.运行业务逻辑
 	err = service.Run()
