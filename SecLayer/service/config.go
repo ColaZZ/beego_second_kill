@@ -16,6 +16,7 @@ type RedisConf struct {
 	RedisMaxIdle     int
 	RedisIdleTimeout int
 	RedisMaxActive   int
+	RedisQueueName   string
 }
 
 type EtcdConf struct {
@@ -29,6 +30,7 @@ type SecLayerConf struct {
 	Proxy2LayerRedis RedisConf
 	Layer2ProxyRedis RedisConf
 	EtcdConfig       EtcdConf
+	TokenPasswd      string
 
 	LogPath  string
 	LogLevel string
@@ -97,5 +99,6 @@ type SecResponse struct {
 	ProductId int
 	UserId    int
 	Token     string
+	TokenTime int64
 	Code      int
 }

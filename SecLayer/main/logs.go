@@ -17,5 +17,6 @@ func initLogger() (err error) {
 		return
 	}
 	err = logs.SetLogger(logs.AdapterFile, string(configStr))
+	logs.SetLogFuncCall(true)
 	return
 }

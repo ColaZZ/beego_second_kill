@@ -1,7 +1,9 @@
 package service
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/garyburd/redigo/redis"
 	"math/rand"
@@ -85,7 +87,8 @@ func SendtoRedis(res *SecResponse) (err error) {
 	}
 
 	conn := secLayerContext.layer2ProxyRedisPool.Get()
-	_, err = redis.String(conn.Do("rpush", "layer2proxy_name", string(data)))
+	_, err = redis.String(conn.Do("rpush",
+		secLayerContext.secLayerConf.Layer2ProxyRedis.RedisQueueName, string(data)))
 	if err != nil {
 		logs.Warn("rpush to redis failed, err:%v", err)
 		return
@@ -97,7 +100,8 @@ func HandleReader() {
 	for {
 		conn := secLayerContext.proxy2LayerRedisPool.Get()
 		for {
-			data, err := redis.String(conn.Do("blpop", "queue_name", 0))
+			data, err := redis.String(conn.Do("blpop",
+				secLayerContext.secLayerConf.Proxy2LayerRedis.RedisQueueName, 0))
 			if err != nil {
 				logs.Error("")
 				break
@@ -216,7 +220,9 @@ func HandleSeckill(req *SecRequest) (res *SecResponse, err error) {
 	secLayerContext.productCountMgr.Add(req.ProductId, 1)
 	res.Code = ErrSecKillSucc
 
-
-
+	tokenData := fmt.Sprintf("userId=%d&productId=%d&timestamp=%d&security=%s", req.UserId, req.ProductId,
+		now, secLayerContext.secLayerConf.TokenPasswd)
+	res.Token = fmt.Sprintf("%x", md5.Sum([]byte(tokenData)))
+	res.TokenTime = now
 	return
 }
