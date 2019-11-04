@@ -67,5 +67,24 @@ func initConfig(confType, filename string) (err error) {
 		return
 	}
 
+	appConfig.HandleUserGoroutineNum, err = conf.Int("service::handle_user_goroutine_num")
+	if err != nil {
+		logs.Error("read handle_user_goroutine_num failed")
+		return
+	}
+
+	appConfig.MaxRequestTimeout, err = conf.Int("service::max_request_wait_timeout")
+	if err != nil {
+		logs.Error("read max_request_wait_timeout failed")
+		return
+	}
+
+	appConfig.Read2HandleChanSize, err = conf.Int("service::read2handle_chan_size")
+	if err != nil {
+		logs.Error("read read2handle_chan_size failed")
+		return
+	}
+
+
 	return
 }
