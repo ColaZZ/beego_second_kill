@@ -29,6 +29,7 @@ func InitSecLayer(conf *SecLayerConf) (err error) {
 
 	secLayerContext.secLayerConf = conf
 	secLayerContext.Read2HandlerChan = make(chan *SecRequest, secLayerContext.secLayerConf.Read2HandleChanSize)
+	secLayerContext.Handle2WriteChan = make(chan *SecResponse, secLayerContext.secLayerConf.Handle2WriteChanSize)
 
 	return
 }

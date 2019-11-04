@@ -38,9 +38,12 @@ type SecLayerConf struct {
 
 	SecProductInfoMap map[int]*SecProductInfoConf
 
-	HandleUserGoroutineNum int
-	MaxRequestTimeout      int
-	Read2HandleChanSize    int
+	HandleUserGoroutineNum  int
+	MaxRequestTimeout       int
+	Read2HandleChanSize     int
+	SendToWriteChanTimeout  int
+	Handle2WriteChanSize    int
+	SendToHandleChanTimeout int
 }
 
 type SecLayerContext struct {
@@ -49,8 +52,10 @@ type SecLayerContext struct {
 	etcdClient           *clientv3.Client
 	RwSecProductLock     sync.Mutex
 	secLayerConf         *SecLayerConf
-	waitGroup            sync.WaitGroup
-	Read2HandlerChan     chan *SecRequest
+
+	waitGroup        sync.WaitGroup
+	Read2HandlerChan chan *SecRequest
+	Handle2WriteChan chan *SecResponse
 }
 
 type SecProductInfoConf struct {
@@ -76,4 +81,11 @@ type SecRequest struct {
 	//CloseNotify   <-chan bool
 
 	//ResultChan chan *SecResult
+}
+
+type SecResponse struct {
+	ProductId int
+	UserId    int
+	Token     string
+	Code      int
 }

@@ -51,17 +51,44 @@ func RunProcess() (err error) {
 
 	for i := 0 ; i < secLayerContext.secLayerConf.WriteGoroutineNum; i ++ {
 		secLayerContext.waitGroup.Add(1)
-		//go HandleWriter()
+		go HandleWriter()
 	}
 
 	for i := 0; i< secLayerContext.secLayerConf.HandleUserGoroutineNum; i ++ {
 		secLayerContext.waitGroup.Add(1)
-		//go HandlerUser()
+		go HandlerUser()
 	}
 
 	logs.Debug("all process goroutine started")
 	secLayerContext.waitGroup.Wait()
 	logs.Debug("wait all goroutine exited")
+	return
+}
+
+func HandleWriter() {
+	logs.Debug("handle write running")
+	for res := range secLayerContext.Handle2WriteChan {
+		err := SendtoRedis(res)
+		if err != nil {
+			logs.Error("send to redis, err:%v, res:%v", err, res)
+			continue
+		}
+	}
+}
+
+func SendtoRedis(res *SecResponse) (err error) {
+	data, err := json.Marshal(res)
+	if err != nil {
+		logs.Error("marshal error , err:%v", err)
+		return
+	}
+
+	conn := secLayerContext.layer2ProxyRedisPool.Get()
+	_, err = redis.String(conn.Do("rpush", "layer2proxy_name", string(data)))
+	if err != nil {
+		logs.Warn("rpush to redis failed, err:%v", err)
+		return
+	}
 	return
 }
 
@@ -88,8 +115,41 @@ func HandleReader() {
 				continue
 			}
 
+			timer := time.NewTicker(time.Millisecond * time.Duration(secLayerContext.secLayerConf.SendToWriteChanTimeout))
+			select {
+			case secLayerContext.Read2HandlerChan <- &req:
+			case <-timer.C:
+				logs.Warn("send to request chan timeout, res:%v", req)
+				break
+
+			}
 			secLayerContext.Read2HandlerChan <- &req
 		}
 		conn.Close()
 	}
+}
+
+func HandlerUser() {
+	logs.Debug("handle user running")
+	for req := range secLayerContext.Read2HandlerChan {
+		res, err := HandleSeckill(req)
+		if err != nil {
+			logs.Warn("process request %v failed, err:%v", err)
+			res = &SecResponse{
+				Code:      ErrServiceBusy,
+			}
+		}
+
+		timer := time.NewTicker(time.Millisecond * time.Duration(secLayerContext.secLayerConf.SendToWriteChanTimeout))
+		select {
+		case secLayerContext.Handle2WriteChan <- res:
+		case <- timer.C:
+			logs.Warn("send to response chan timeout, res:%v", res)
+			break
+		}
+	}
+}
+
+func HandleSeckill(req *SecRequest) (res *SecResponse, err error) {
+	return
 }

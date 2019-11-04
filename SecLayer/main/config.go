@@ -85,6 +85,24 @@ func initConfig(confType, filename string) (err error) {
 		return
 	}
 
+	appConfig.Handle2WriteChanSize, err = conf.Int("service::handle2write_chan_size")
+	if err != nil {
+		logs.Error("read handle2write_chan_size failed")
+		return
+	}
+
+	appConfig.SendToWriteChanTimeout, err = conf.Int("service::send_to_write_chan_timeout")
+	if err != nil {
+		logs.Error("read send_to_write_chan_timeout failed")
+		return
+	}
+
+	appConfig.SendToHandleChanTimeout, err = conf.Int("service::send_to_handle_chan_timeout")
+	if err != nil {
+		logs.Error("read send_to_handle_chan_timeout failed")
+		return
+	}
+
 
 	return
 }
