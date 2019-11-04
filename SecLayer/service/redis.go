@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/astaxie/beego/logs"
 	"github.com/garyburd/redigo/redis"
+	"math/rand"
 	"time"
 )
 
@@ -151,5 +152,71 @@ func HandlerUser() {
 }
 
 func HandleSeckill(req *SecRequest) (res *SecResponse, err error) {
+	secLayerContext.RwSecProductLock.RLock()
+	defer secLayerContext.RwSecProductLock.RUnlock()
+
+	res = &SecResponse{}
+	//1.找到用户抢购的商品
+	product, ok := secLayerContext.secLayerConf.SecProductInfoMap[req.ProductId]
+	if !ok {
+		logs.Error("not found the product")
+		res.Code = ErrNotFoundProduct
+		return
+	}
+
+	//2. 商品售罄状态
+	if product.Status == ProductStatusSoldout {
+		res.Code = ErrSoldout
+		return
+	}
+
+	//3.是否超速
+	now := time.Now().Unix()
+	alreadySoldCount := product.secLimit.Check(now)
+	if alreadySoldCount >= product.SoldMaxLimit {
+		res.Code = ErrRetry
+		return
+	}
+
+	//4.是否已经购买过
+	secLayerContext.HistoryMapLock.Lock()
+	userHistory, ok := secLayerContext.HistoryMap[req.UserId]
+	if !ok {
+		userHistory = &UserBuyHistory{
+			history: make(map[int]int, 16),
+		}
+		secLayerContext.HistoryMap[req.UserId] = userHistory
+	}
+	historyCount := userHistory.GetProductBuyCount(req.ProductId)
+	secLayerContext.HistoryMapLock.Unlock()
+
+	if historyCount >= product.OnePersonBuyLimit {
+		//已经买过了
+		res.Code = ErrAlreadyBuy
+		return
+	}
+
+	//5.商品已经全局卖的个数
+	curSoldCount := secLayerContext.productCountMgr.Count(req.ProductId)
+	if curSoldCount >= product.Total {
+		res.Code = ErrSoldout
+		product.Status = ProductStatusSoldout
+		return
+	}
+
+	//6.随机抽奖
+	curRate := rand.Float64()
+	if curRate > product.BuyRate {
+		res.Code = ErrRetry
+		return
+	}
+
+	//7.购买成功
+	userHistory.Add(req.ProductId, 1)
+	secLayerContext.productCountMgr.Add(req.ProductId, 1)
+	res.Code = ErrSecKillSucc
+
+
+
 	return
 }

@@ -43,7 +43,7 @@ func updateSecProductInfo(conf *SecLayerConf, secProductInfo []SecProductInfoCon
 	var tmp map[int]*SecProductInfoConf = make(map[int]*SecProductInfoConf, 1024)
 	for _, v := range secProductInfo {
 		productinfo := v
-		//productinfo.secLimit = &SecLimit{}
+		productinfo.secLimit = &SecLimit{}
 		tmp[v.ProductId] = &productinfo
 	}
 	secLayerContext.RwSecProductLock.Lock()

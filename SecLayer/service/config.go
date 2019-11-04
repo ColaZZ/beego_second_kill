@@ -50,21 +50,31 @@ type SecLayerContext struct {
 	proxy2LayerRedisPool *redis.Pool
 	layer2ProxyRedisPool *redis.Pool
 	etcdClient           *clientv3.Client
-	RwSecProductLock     sync.Mutex
+	RwSecProductLock     sync.RWMutex
 	secLayerConf         *SecLayerConf
 
 	waitGroup        sync.WaitGroup
 	Read2HandlerChan chan *SecRequest
 	Handle2WriteChan chan *SecResponse
+
+	HistoryMap     map[int]*UserBuyHistory
+	HistoryMapLock sync.Mutex
+
+	productCountMgr *ProductCountMgr
 }
 
 type SecProductInfoConf struct {
-	ProductId int
-	StartTime int64
-	EndTime   int64
-	Status    int
-	Total     int
-	Left      int
+	ProductId    int
+	StartTime    int64
+	EndTime      int64
+	Status       int
+	Total        int
+	Left         int
+	BuyRate      float64
+	SoldMaxLimit int
+	secLimit     *SecLimit
+	//单人限制购买的数量
+	OnePersonBuyLimit int
 }
 
 type SecRequest struct {
