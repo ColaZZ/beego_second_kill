@@ -1,6 +1,7 @@
 package main
 
 import (
+	"SecondKill/SecAdmin/model"
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/jmoiron/sqlx"
@@ -31,6 +32,11 @@ func initAll() (err error){
 	err = initDb()
 	if err != nil {
 		logs.Warn("init DB failed, err:%v", err)
+		return
+	}
+	err = model.Init(Db)
+	if err != nil {
+		logs.Warn("init model failed, err:%v", err)
 		return
 	}
 	return
