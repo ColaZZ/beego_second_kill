@@ -1,8 +1,11 @@
 package model
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego/logs"
+	"strings"
 	"time"
 )
 
@@ -24,6 +27,21 @@ type Activity struct {
 	StartTimeStr string
 	EndTimeStr   string
 	StatusStr    string
+
+	Speed    int `db:"sec_speed"`
+	BuyLimit int `db:"buy_limit"`
+}
+
+type SecProductInfoConf struct {
+	ProductId         int
+	StartTime         int64
+	EndTime           int64
+	Status            int
+	Total             int
+	Left              int
+	OnePersonBuyLimit int
+	BuyRate           float64
+	SoldMaxLimit      int
 }
 
 type ActivityModel struct {
@@ -34,7 +52,7 @@ func NewActivityModel() *ActivityModel {
 }
 
 func (p *ActivityModel) GetActivityList() (activityList []*Activity, err error) {
-	sqlStr := "select id,name,product_id,start_time,end_time,total,status from activity order by id desc"
+	sqlStr := "select id,name,product_id,start_time,end_time,total,status,sec_speed,buy_limit from activity order by id desc"
 	err = Db.Select(&activityList, sqlStr)
 	if err != nil {
 		logs.Error("select activity from database failed, err:%v", err)
@@ -95,7 +113,7 @@ func (p *ActivityModel) CreateActivity(activity *Activity) (err error) {
 		return
 	}
 
-	sqlStr := "insert into activity(name,product_id,start_time,end_time,total values(?,?,?,?,?)"
+	sqlStr := "insert into activity(name,product_id,start_time,end_time,total,sec_speed,buy_limit values(?,?,?,?,?,?,?)"
 	_, err = Db.Exec(sqlStr, activity.ActivityName, activity.ProductId, activity.StartTime, activity.EndTime,
 		activity.Total)
 	if err != nil {
@@ -104,6 +122,71 @@ func (p *ActivityModel) CreateActivity(activity *Activity) (err error) {
 	}
 	logs.Debug("insert into database succ")
 
+	err = p.SyncToEtcd(activity)
+	if err != nil {
+		logs.Warn("sync to etcd failed, err:%v, data:%v", err, activity)
+		return
+	}
+
+	return
+}
+
+func (p *ActivityModel) SyncToEtcd(activity *Activity) (err error) {
+	if strings.HasSuffix(EtcdPrefix, "/") == false {
+		EtcdPrefix = EtcdPrefix + "/"
+	}
+	etcdKey := fmt.Sprintf("%s%s", EtcdPrefix, EtcdProductKey)
+	secProductInfoList, err := loadProductFromEtcd(etcdKey)
+	if err != nil {
+		logs.Error("load product from etcd failed, err:%v", err)
+		return
+	}
+
+	var secProductInfo SecProductInfoConf
+	secProductInfo.ProductId = activity.ProductId
+	secProductInfo.StartTime = activity.StartTime
+	secProductInfo.EndTime = activity.EndTime
+	secProductInfo.Total = activity.Total
+	secProductInfo.Status = activity.Status
+	secProductInfo.OnePersonBuyLimit = activity.BuyLimit
+	secProductInfo.SoldMaxLimit = activity.Speed
+
+	secProductInfoList = append(secProductInfoList, secProductInfo)
+
+	data, err := json.Marshal(secProductInfoList)
+	if err != nil {
+		logs.Error("json marshal failed, err%v", err)
+		return
+	}
+
+	_, err = EtcdClient.Put(context.Background(), etcdKey, string(data))
+	if err != nil {
+		logs.Error("Put to etcd failed, err:%v", err)
+		return
+	}
+	return
+}
+
+func loadProductFromEtcd(etcdkey string) (secProductInfo []SecProductInfoConf, err error) {
+	logs.Debug("start get from etcd success")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	resp, err := EtcdClient.Get(ctx, etcdkey)
+	if err != nil {
+		logs.Error("get [%s] from etcd falied, err:%v", etcdkey, err)
+		return
+	}
+
+	logs.Debug("get from etcd success")
+	for k, v := range resp.Kvs {
+		logs.Debug("key[%v] value[%v]", k, v)
+		err = json.Unmarshal(v.Value, &secProductInfo)
+		if err != nil {
+			logs.Error("Unmarshal sec product info failed, err:%v", err)
+			return
+		}
+		logs.Debug("sec info conf is [%v]", secProductInfo)
+	}
 	return
 }
 

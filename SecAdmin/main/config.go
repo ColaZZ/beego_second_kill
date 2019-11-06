@@ -13,8 +13,16 @@ type MysqlConfig struct {
 	Database string
 }
 
+type EtcdConf struct {
+	Addr          string
+	EtcdKeyPrefix string
+	ProductKey    string
+	Timeout       int
+}
+
 type Config struct {
 	mysqlConf MysqlConfig
+	etcdConf  EtcdConf
 }
 
 var AppConfig Config
@@ -56,6 +64,33 @@ func initConfig() (err error) {
 	}
 	AppConfig.mysqlConf.Port = mysqlPort
 
+	etcdAddr := beego.AppConfig.String("etcd_addr")
+	if len(etcdAddr) == 0 {
+		logs.Error("read etcd_addr faield, err", err)
+		return
+	}
+	AppConfig.etcdConf.Addr = etcdAddr
+
+	etcdSecKeyPrefix := beego.AppConfig.String("etcd_sec_key_prefix")
+	if len(etcdSecKeyPrefix) == 0 {
+		logs.Error("read etcd_sec_key_prefix faield, err", err)
+		return
+	}
+	AppConfig.etcdConf.EtcdKeyPrefix = etcdSecKeyPrefix
+
+	etcdProductKey := beego.AppConfig.String("etcd_product_key")
+	if len(etcdProductKey) == 0 {
+		logs.Error("read etcd_product_key faield, err", err)
+		return
+	}
+	AppConfig.etcdConf.ProductKey = etcdProductKey
+
+	etcdTimeout, err := beego.AppConfig.Int("etcd_timeout")
+	if nil != nil {
+		logs.Error("read etcd_timeout faield, err", err)
+		return
+	}
+	AppConfig.etcdConf.Timeout = etcdTimeout
 
 
 	return

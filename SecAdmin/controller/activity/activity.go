@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
+	"net/http"
 )
 
 type ActivityController struct {
@@ -75,9 +76,23 @@ func (p *ActivityController) SubmitActivity() {
 		return
 	}
 
-	total, err :=p.GetInt("Total")
+	total, err := p.GetInt("Total")
 	if err != nil {
 		err = fmt.Errorf("商品数量非法, err:%v", err)
+		Error = err.Error()
+		return
+	}
+
+	speed, err := p.GetInt("speed")
+	if err != nil {
+		err = fmt.Errorf("商品速度 非法, err:%v", err)
+		Error = err.Error()
+		return
+	}
+
+	limit, err := p.GetInt("buy_limit")
+	if err != nil {
+		err = fmt.Errorf("购买限制 非法, err:%v", err)
 		Error = err.Error()
 		return
 	}
@@ -87,7 +102,16 @@ func (p *ActivityController) SubmitActivity() {
 	activity.StartTime = startTime
 	activity.EndTime = endTime
 	activity.Total = total
+	activity.Speed = speed
+	activity.BuyLimit = limit
 
-	err = activityModel
+	err = activityModel.CreateActivity(&activity)
+	if err != nil {
+		err = fmt.Errorf("创建活动失败,err:%v", err)
+		Error = err.Error()
+		return
+	}
 
+	p.Redirect("/activity/list", http.StatusMovedPermanently)
+	return
 }

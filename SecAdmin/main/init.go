@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/jmoiron/sqlx"
+	"go.etcd.io/etcd/clientv3"
+	"time"
 )
 
 var Db *sqlx.DB
+var EtcdClient *clientv3.Client
 
 func initDb() (err error){
 	dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", AppConfig.mysqlConf.Username, AppConfig.mysqlConf.Passwd,
@@ -34,10 +37,31 @@ func initAll() (err error){
 		logs.Warn("init DB failed, err:%v", err)
 		return
 	}
-	err = model.Init(Db)
+	err = model.Init(Db, EtcdClient, AppConfig.etcdConf.EtcdKeyPrefix, AppConfig.etcdConf.ProductKey)
 	if err != nil {
 		logs.Warn("init model failed, err:%v", err)
 		return
 	}
+	err = initEtcd()
+	if err!= nil {
+		logs.Warn("init etcd failed, err:%v", err)
+		return
+	}
+	return
+}
+
+func initEtcd() (err error) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:            []string{AppConfig.etcdConf.Addr},
+		DialTimeout:          time.Duration(AppConfig.etcdConf.Timeout) * time.Second,
+
+	})
+	if err != nil {
+		logs.Error("connect etcd failed,err:%v", err)
+		return
+	}
+
+	EtcdClient = cli
+	logs.Debug("init etcd success")
 	return
 }
