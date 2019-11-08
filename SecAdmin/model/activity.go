@@ -28,8 +28,9 @@ type Activity struct {
 	EndTimeStr   string
 	StatusStr    string
 
-	Speed    int `db:"sec_speed"`
-	BuyLimit int `db:"buy_limit"`
+	Speed    int     `db:"sec_speed"`
+	BuyLimit int     `db:"buy_limit"`
+	BuyRate  float64 `db:"buy_rate"`
 }
 
 type SecProductInfoConf struct {
@@ -113,9 +114,10 @@ func (p *ActivityModel) CreateActivity(activity *Activity) (err error) {
 		return
 	}
 
-	sqlStr := "insert into activity(name,product_id,start_time,end_time,total,sec_speed,buy_limit values(?,?,?,?,?,?,?)"
+	sqlStr := "insert into activity(name,product_id,start_time,end_time,total,sec_speed,buy_limit,buy_rate " +
+		"values(?,?,?,?,?,?,?)"
 	_, err = Db.Exec(sqlStr, activity.ActivityName, activity.ProductId, activity.StartTime, activity.EndTime,
-		activity.Total)
+		activity.Total, activity.BuyRate)
 	if err != nil {
 		logs.Warn("insert into activity failed, err:%v", err)
 		return
@@ -150,6 +152,7 @@ func (p *ActivityModel) SyncToEtcd(activity *Activity) (err error) {
 	secProductInfo.Status = activity.Status
 	secProductInfo.OnePersonBuyLimit = activity.BuyLimit
 	secProductInfo.SoldMaxLimit = activity.Speed
+	secProductInfo.BuyRate = activity.BuyRate
 
 	secProductInfoList = append(secProductInfoList, secProductInfo)
 

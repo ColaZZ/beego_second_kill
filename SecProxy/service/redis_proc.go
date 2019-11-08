@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/garyburd/redigo/redis"
+	"time"
 )
 
 func WriteHandle() {
@@ -19,7 +20,7 @@ func WriteHandle() {
 			continue
 		}
 
-		_, err = conn.Do("LPUSh", "sec_queue", data)
+		_, err = conn.Do("LPUSh", "sec_queue", string(data))
 		if err != nil {
 			logs.Error("lpush failed, error:%v, req:%v", err, req)
 			conn.Close()
@@ -34,12 +35,19 @@ func ReadHandle() {
 		conn := secKillConf.proxy2LayerRedisPool.Get()
 
 		reply, err := conn.Do("RPOP", "recv_queue")
-		data, err := redis.String(reply, err)
 		if err != nil {
 			logs.Error("rpop failed, error:%v", err)
 			conn.Close()
 			continue
 		}
+		data, err := redis.String(reply, err)
+		if err == redis.ErrNil {
+			time.Sleep(time.Second)
+			conn.Close()
+			continue
+		}
+		logs.Debug("rpop from redis succ, data:%s", string(data))
+
 
 		var result SecResult
 		err = json.Unmarshal([]byte(data), &result)

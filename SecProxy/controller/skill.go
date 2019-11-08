@@ -4,7 +4,6 @@ import (
 	"SecondKill/SecProxy/service"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -43,7 +42,8 @@ func (p *SkillController) SecKill() {
 	secRequest.Nance = nance
 	secRequest.ProductId = productId
 	secRequest.UserAuthSign = p.Ctx.GetCookie("userAuthSign")
-	secRequest.UserId, _ = strconv.Atoi(p.Ctx.GetCookie("UserId"))
+	//secRequest.UserId, _ = strconv.Atoi(p.Ctx.GetCookie("UserId"))
+	secRequest.UserId, _ = p.GetInt("user_id")
 	secRequest.AccessTime = time.Now()
 
 	if len(p.Ctx.Request.RemoteAddr) > 0 {

@@ -97,6 +97,13 @@ func (p *ActivityController) SubmitActivity() {
 		return
 	}
 
+	buyRate, err := p.GetFloat("buy_rate")
+	if err != nil {
+		err = fmt.Errorf("购买限制 非法, err:%v", err)
+		Error = err.Error()
+		return
+	}
+
 	activity.ActivityName = name
 	activity.ProductId = productId
 	activity.StartTime = startTime
@@ -104,6 +111,7 @@ func (p *ActivityController) SubmitActivity() {
 	activity.Total = total
 	activity.Speed = speed
 	activity.BuyLimit = limit
+	activity.BuyRate = buyRate
 
 	err = activityModel.CreateActivity(&activity)
 	if err != nil {

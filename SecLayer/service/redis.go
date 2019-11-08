@@ -87,8 +87,7 @@ func SendtoRedis(res *SecResponse) (err error) {
 	}
 
 	conn := secLayerContext.layer2ProxyRedisPool.Get()
-	_, err = redis.String(conn.Do("rpush",
-		secLayerContext.secLayerConf.Layer2ProxyRedis.RedisQueueName, string(data)))
+	_, err = conn.Do("rpush", secLayerContext.secLayerConf.Layer2ProxyRedis.RedisQueueName, string(data))
 	if err != nil {
 		logs.Warn("rpush to redis failed, err:%v", err)
 		return
@@ -100,12 +99,26 @@ func HandleReader() {
 	for {
 		conn := secLayerContext.proxy2LayerRedisPool.Get()
 		for {
-			data, err := redis.String(conn.Do("blpop",
+			ret, err := redis.String(conn.Do("blpop",
 				secLayerContext.secLayerConf.Proxy2LayerRedis.RedisQueueName, 0))
 			if err != nil {
 				logs.Error("")
 				break
 			}
+
+			tmp, ok := interface{}(ret).([]interface{})
+			if !ok || len(tmp) != 2{
+				logs.Error("pop from queue failed, err:%v", err)
+				continue
+			}
+
+			data, ok := tmp[1].([]byte)
+			if !ok {
+				logs.Error("pop from queue failed, err:%v", err)
+				continue
+			}
+
+			logs.Debug("pop from queue, data:%s", string(data))
 
 			var req SecRequest
 			err = json.Unmarshal([]byte(data), &req)
@@ -161,6 +174,9 @@ func HandleSeckill(req *SecRequest) (res *SecResponse, err error) {
 
 	res = &SecResponse{}
 	//1.找到用户抢购的商品
+	res = &SecResponse{}
+	res.UserId = req.UserId
+	res.ProductId = req.ProductId
 	product, ok := secLayerContext.secLayerConf.SecProductInfoMap[req.ProductId]
 	if !ok {
 		logs.Error("not found the product")
